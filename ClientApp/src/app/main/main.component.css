@@ -1,0 +1,29 @@
+#container {
+    background-color: rgb(240, 240, 240);
+    height: 100%;
+}
+
+.session {
+    margin: 10px;
+}
+
+.line {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+#watch {
+    margin-left: 10px;
+}
+
+#progress {
+    width: 98%;
+    margin-left: 1%;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+.btn {
+    margin: 15px;
+}
