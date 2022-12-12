@@ -44,13 +44,21 @@ export class MainComponent {
 
   setLoginDisplay() {
     this.loginDisplay = this.authService.instance.getAllAccounts().length > 0;
-    if (this.loginDisplay) {
-      this.getFiles();
-    }
   }
 
   getFiles() {
-    firstValueFrom(this.httpClient.get<GetFilesResponse>('/drive/getfiles')).then(x => {
+    
+    
+    
+    // firstValueFrom(this.httpClient.get<DriveAccessMessage>('/drive/getgoogledriveaccessurl')).then(x => {
+    //   const thisUrl = window.location.href;
+    //   const redirect = thisUrl.substring(0, thisUrl.lastIndexOf('/')) + '/callback';
+    //   const host = encodeURIComponent(redirect);
+    //   const url = x.redirect + 'redirect_uri=' + host;
+    //   window.location.replace(url);
+    // });
+    firstValueFrom(this.httpClient.get('/drive/hasaccess')).then(x => {
+      console.log(x);
     });
   }
 
@@ -78,7 +86,8 @@ export class MainComponent {
   // }
 }
 
-class GetFilesResponse {
-  files: string[] = [];
+export class DriveAccessMessage {
+  code:string = '';
+  redirect:string = '';
 }
 

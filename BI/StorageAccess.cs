@@ -1,5 +1,6 @@
 ﻿using Azure.Storage.Files.Shares;
 using Azure.Storage.Files.Shares.Models;
+using System.Text;
 
 namespace MyDrive;
 
@@ -18,7 +19,7 @@ public class StorageAccess
 
     private async Task<ShareDirectoryClient> GetDirectory()
     {
-        ShareClient share = new ShareClient(_connection, "files");
+        ShareClient share = new ShareClient(_connection, "mydrive");
         var dir = share.GetRootDirectoryClient();
         dir = dir.GetSubdirectoryClient(this._authId);
         await dir.CreateIfNotExistsAsync();
@@ -40,6 +41,14 @@ public class StorageAccess
             Position = from,
         };
         return await file.OpenReadAsync(opt);
+    }
+
+    public async Task<string> ReadFile()
+    {
+        var file = await GetFileClient();
+        using Stream str = await file.OpenReadAsync();
+        using StreamReader sr = new StreamReader(str);
+        return await sr.ReadToEndAsync();
     }
 
     internal async Task<Stream> CreateUploadStream(long size)
@@ -66,7 +75,7 @@ public class StorageAccess
     internal async Task Delete()
     {
         var file = await GetFileClient();
-        await file.DeleteAsync();
+        await file.DeleteIfExistsAsync();
     }
 
     internal async Task Rename(string newFilename)

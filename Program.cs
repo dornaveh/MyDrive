@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Configuration.AddAzureKeyVault(new Uri(keyVault), new DefaultAzureCredential());
 builder.Services.AddSingleton(new JwtHelper(builder.Configuration));
+builder.Services.AddSingleton(new GoogleProvider(builder.Configuration));
 
 var app = builder.Build();
 

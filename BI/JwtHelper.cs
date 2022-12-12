@@ -1,6 +1,9 @@
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Collections.ObjectModel;
 using System.IdentityModel.Tokens.Jwt;
 
 namespace MyDrive;
@@ -19,7 +22,7 @@ public class JwtHelper
         _configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(jwtConfig.metaDataAddress, new OpenIdConnectConfigurationRetriever());
     }
 
-    public async Task<string> getId(HttpRequest req)
+    public async Task<(string id, string email)> getId(HttpRequest req)
     {
         if (!req.Headers.ContainsKey("Authorization"))
         {
@@ -50,7 +53,10 @@ public class JwtHelper
             {
                 var handler = new JwtSecurityTokenHandler();
                 handler.ValidateToken(token, validationParameter, out var jwt);
-                return ((JwtSecurityToken)jwt).Payload["oid"] as string;
+                var id = ((JwtSecurityToken)jwt).Payload["oid"] as string;
+                var emails = ((JwtSecurityToken)jwt).Payload["emails"];
+                var email = JsonConvert.DeserializeObject<string[]>(emails.ToString()).First();
+                return (id, email);
             }
             catch (SecurityTokenSignatureKeyNotFoundException)
             {
