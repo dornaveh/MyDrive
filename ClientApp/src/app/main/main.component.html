@@ -3,7 +3,14 @@
         Loading...
     </div>
     <div *ngIf="loginDisplay">
-        <button mat-raised-button (click)="getFiles()"><mat-icon>refresh</mat-icon> Refresh Files</button>
+        <button mat-raised-button (click)="root()">Root</button>
         <mat-divider></mat-divider>
+    </div>
+    <div id="files">
+        <mat-card class="file" *ngFor="let i of files" (click)="itemClick(i)">
+            <mat-card-header>
+                <mat-card-title>{{i.name}}</mat-card-title>
+            </mat-card-header>
+        </mat-card>
     </div>
 </div>

@@ -1,5 +1,4 @@
 #container {
-    background-color: rgb(240, 240, 240);
     height: 100%;
 }
 
@@ -22,6 +21,20 @@
     margin-left: 1%;
     margin-bottom: 10px;
     border-radius: 5px;
+}
+
+#files {
+    display: flex;
+    gap: 20px;
+    flex-flow: row wrap;
+}
+
+.file {
+    width: 200px;
+    height: 100px;
+    margin: 5px;
+    border: 1px black solid;
+    background-color: rgb(250, 250, 250);
 }
 
 .btn {

@@ -32,12 +32,12 @@ public class DriveController : ControllerBase
         return new DriveAccessMessage { Redirect = url };
     }
 
-    [HttpGet("hasaccess")]
-    public async Task<bool> HasAccess()
+    [HttpGet("getfiles")]
+    public async Task<List<FileItem>> GetFiles(string folder = "root")
     {
         var token = await _jwtHelper.getId(Request);
-        var access = await _googleProvider.GetAccessToken(token.id);
-        return access != null;
+        var access = await _googleProvider.GetAccess(token.id);
+        return await access.GetFiles(folder);
     }
 
     public class DriveAccessMessage

@@ -1,3 +1,4 @@
+global using GoogleFile = Google.Apis.Drive.v3.Data.File;
 using Azure.Identity;
 using MyDrive;
 

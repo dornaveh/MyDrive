@@ -22,6 +22,7 @@ import { CallbackComponent } from './callback/callback.component';
 import { MainComponent } from './main/main.component';
 
 const isIE = window.navigator.userAgent.indexOf('MSIE ') > -1 || window.navigator.userAgent.indexOf('Trident/') > -1;
+
 @NgModule({
   declarations: [
     AppComponent,

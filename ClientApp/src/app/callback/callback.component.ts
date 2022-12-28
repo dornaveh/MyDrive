@@ -4,8 +4,7 @@ import { BackendService } from 'src/app/backend.service';
 
 @Component({
   selector: 'app-callback',
-  templateUrl: './callback.component.html',
-  styleUrls: ['./callback.component.css']
+  template: '',
 })
 export class CallbackComponent implements OnInit {
 

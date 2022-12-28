@@ -1,6 +1,5 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, Inject } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
 import { MsalBroadcastService, MsalGuardConfiguration, MsalService, MSAL_GUARD_CONFIG } from '@azure/msal-angular';
 import { EventMessage, EventType, InteractionStatus, RedirectRequest } from '@azure/msal-browser';
 import { filter, firstValueFrom } from 'rxjs';
@@ -13,14 +12,13 @@ import { filter, firstValueFrom } from 'rxjs';
 export class MainComponent {
 
   loginDisplay = false;
-  copyUrlStr = "Copy Url";
+  files: FileItem[] = [];
 
   constructor(
     @Inject(MSAL_GUARD_CONFIG) private msalGuardConfig: MsalGuardConfiguration,
     private authService: MsalService,
     private msalBroadcastService: MsalBroadcastService,
-    private httpClient: HttpClient,
-    private dialog: MatDialog) {
+    private httpClient: HttpClient) {
   }
 
   ngOnInit(): void {
@@ -44,22 +42,9 @@ export class MainComponent {
 
   setLoginDisplay() {
     this.loginDisplay = this.authService.instance.getAllAccounts().length > 0;
-  }
-
-  getFiles() {
-    
-    
-    
-    // firstValueFrom(this.httpClient.get<DriveAccessMessage>('/drive/getgoogledriveaccessurl')).then(x => {
-    //   const thisUrl = window.location.href;
-    //   const redirect = thisUrl.substring(0, thisUrl.lastIndexOf('/')) + '/callback';
-    //   const host = encodeURIComponent(redirect);
-    //   const url = x.redirect + 'redirect_uri=' + host;
-    //   window.location.replace(url);
-    // });
-    firstValueFrom(this.httpClient.get('/drive/hasaccess')).then(x => {
-      console.log(x);
-    });
+    if (this.loginDisplay) {
+      this.root();
+    }
   }
 
   login() {
@@ -76,18 +61,32 @@ export class MainComponent {
     this.authService.logout();
   }
 
-  // openDialog(item: Item): void {
-  //   let dialogRef = this.dialog.open(FileDialogComponent, {
-  //     data: { name: item.name }
-  //   });
-  //   dialogRef.afterClosed().subscribe(result => {
-  //     this.getFiles();
-  //   });
-  // }
+  itemClick(item: FileItem) {
+    console.log(item);
+    if (item.type==='application/vnd.google-apps.folder') {
+      this.getFiles(item.id);
+    }
+  }
+
+  root() {
+    this.getFiles('root');
+  }
+
+  getFiles(folder:string) {
+    firstValueFrom(this.httpClient.get<FileItem[]>('/drive/getfiles?folder=' + folder)).then(x => {
+      this.files = x;
+    });
+  }
 }
 
 export class DriveAccessMessage {
-  code:string = '';
-  redirect:string = '';
+  code: string = '';
+  redirect: string = '';
+}
+
+class FileItem {
+  name: string = '';
+  id: string = '';
+  type: string = '';
 }
 

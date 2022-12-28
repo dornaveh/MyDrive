@@ -1,3 +1,4 @@
+using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using System.Net;
 using System.Text;
@@ -50,11 +51,11 @@ public class GoogleProvider
         }
     }
 
-    public async Task<string> GetAccessToken(string authId)
+    public async Task<GoogleAccess> GetAccess(string authId)
     {
         var refreash = JsonConvert.DeserializeObject<JsonGoogleConfig>(await GetConfigStorage(authId).ReadFile()).RefreshToken;
         var access = await FetchAccessTokenFromGoogle(refreash);
-        return access;
+        return access.IsNullOrEmpty() ? null : new GoogleAccess(access);
     }
 
     public string CreateRequestAccessUrl(string email)
