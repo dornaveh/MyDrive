@@ -1,6 +1,7 @@
 global using GoogleFile = Google.Apis.Drive.v3.Data.File;
 using Azure.Identity;
 using MyDrive;
+using System.Net;
 
 var keyVault = Environment.GetEnvironmentVariable("VaultUri");
 var builder = WebApplication.CreateBuilder(args);
@@ -14,13 +15,17 @@ builder.Services.AddSingleton<GoogleProvider>();
 builder.Services.AddSingleton<BackupManager>();
 builder.Services.AddSingleton(builder.Configuration.GetMsalConfig());
 
+var handler = new HttpClientHandler();
+if (handler.SupportsAutomaticDecompression)
+{
+    handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+}
+builder.Services.AddSingleton(new HttpClient(handler));
+
 var app = builder.Build();
 
-
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
