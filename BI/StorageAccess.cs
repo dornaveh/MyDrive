@@ -43,12 +43,19 @@ public class StorageAccess
         return await file.OpenReadAsync(opt);
     }
 
-    public async Task<string> ReadFile()
+    public async Task<string?> ReadFile()
     {
-        var file = await GetFileClient();
-        using Stream str = await file.OpenReadAsync();
-        using StreamReader sr = new StreamReader(str);
-        return await sr.ReadToEndAsync();
+        try
+        {
+            var file = await GetFileClient();
+            using Stream str = await file.OpenReadAsync();
+            using StreamReader sr = new StreamReader(str);
+            return await sr.ReadToEndAsync();
+        } 
+        catch
+        {
+            return null;
+        }
     }
 
     internal async Task<Stream> CreateUploadStream(long size)

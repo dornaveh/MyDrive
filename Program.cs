@@ -9,8 +9,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 builder.Configuration.AddAzureKeyVault(new Uri(keyVault), new DefaultAzureCredential());
-builder.Services.AddSingleton(new JwtHelper(builder.Configuration));
-builder.Services.AddSingleton(new GoogleProvider(builder.Configuration));
+builder.Services.AddSingleton<JwtHelper>();
+builder.Services.AddSingleton<GoogleProvider>();
+builder.Services.AddSingleton<BackupManager>();
+builder.Services.AddSingleton(builder.Configuration.GetMsalConfig());
 
 var app = builder.Build();
 

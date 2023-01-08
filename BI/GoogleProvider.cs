@@ -1,4 +1,3 @@
-using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using System.Net;
 using System.Text;
@@ -7,6 +6,7 @@ namespace MyDrive;
 
 public class GoogleProvider
 {
+    private List<(string id, GoogleAccess access)> _cache = new();
     private readonly IConfiguration _config;
     public GoogleProvider(IConfiguration config)
     {
@@ -16,12 +16,12 @@ public class GoogleProvider
     private string GoogleClientId { get => _config.GetGoogleClientId(); }
     private string GoogleClientSecret { get => _config.GetGoogleClientSecret(); }
 
-    private StorageAccess GetConfigStorage(string authId)
+    private StorageAccess GetConfigStorage(string id)
     {
-        return new StorageAccess(_config.GetBlobStorageConnectionString(), "google.config", authId);
+        return new StorageAccess(_config.GetBlobStorageConnectionString(), "google.config", id);
     }
 
-    internal async Task SolidifyAccess(string code, string redirect, string authId)
+    public async Task SolidifyAccess(string code, string redirect, string id)
     {
         StringBuilder body = new StringBuilder();
         body.Append("code=" + code + "&");
@@ -30,8 +30,8 @@ public class GoogleProvider
         body.Append("redirect_uri=" + redirect + "&");
         body.Append("grant_type=authorization_code");
         var res = await Post("https://www.googleapis.com/oauth2/v4/token", body.ToString());
-        var bearer = JsonConvert.DeserializeObject<JsonGoogleBearer>(res.body);
-        var storage = GetConfigStorage(authId);
+        var bearer = JsonConvert.DeserializeObject<JsonBearerToken>(res.body);
+        var storage = GetConfigStorage(id);
         await storage.Delete();
         var config = new JsonGoogleConfig()
         {
@@ -51,11 +51,34 @@ public class GoogleProvider
         }
     }
 
-    public async Task<GoogleAccess> GetAccess(string authId)
+    public async Task<GoogleAccess?> GetAccess(string id)
     {
-        var refreash = JsonConvert.DeserializeObject<JsonGoogleConfig>(await GetConfigStorage(authId).ReadFile()).RefreshToken;
-        var access = await FetchAccessTokenFromGoogle(refreash);
-        return access.IsNullOrEmpty() ? null : new GoogleAccess(access);
+        var cached = _cache.FirstOrDefault(x => id.Equals(x.id)).access;
+        if (cached != null)
+        {
+            return cached;
+        }
+        var refreshToken = await GetConfigStorage(id).ReadFile();
+        if (refreshToken == null)
+        {
+            return null;
+        }
+        var refresh = JsonConvert.DeserializeObject<JsonGoogleConfig>(refreshToken)?.RefreshToken;
+        Func<Task<string?>> func = new AccessTokenProvider(refresh, FetchAccessTokenFromGoogle).GetAccessToken;
+        var access = new GoogleAccess(func);
+        if (await access.HasAccess())
+        {
+            _cache.Add((id, access));
+            while (_cache.Count > 100)
+            {
+                _cache.RemoveAt(0);
+            }
+            return access;
+        }
+        else
+        {
+            return null;
+        }
     }
 
     public string CreateRequestAccessUrl(string email)
@@ -65,6 +88,7 @@ public class GoogleProvider
         sb.Append("scope=email%20profile%20https://www.googleapis.com/auth/drive&");
         sb.Append("access_type=offline&");
         sb.Append("include_granted_scopes=true&");
+        sb.Append("state=googlecode&");
         sb.Append("response_type=code&");
         sb.Append("login_hint=" + email + "&");
         sb.Append("prompt=select_account&");
@@ -72,8 +96,13 @@ public class GoogleProvider
         return sb.ToString();
     }
 
-    private async Task<string> FetchAccessTokenFromGoogle(string refreshToken)
+    private async Task<JsonAccessToken> FetchAccessTokenFromGoogle(string refreshToken)
     {
+        Console.WriteLine("FetchAccessTokenFromGoogle");
+        if (string.IsNullOrEmpty(refreshToken))
+        {
+            return null;
+        }
         try
         {
             var body = new StringBuilder();
@@ -83,7 +112,7 @@ public class GoogleProvider
             body.Append("grant_type=refresh_token");
             var res = await Post("https://www.googleapis.com/oauth2/v4/token", body.ToString());
             var access = JsonConvert.DeserializeObject<JsonAccessToken>(res.body);
-            return access.access_token;
+            return access;
         }
         catch
         {
@@ -123,10 +152,10 @@ public class GoogleProvider
         public string token_type { get; set; }
     }
 
-    private class JsonGoogleBearer
+    private class JsonBearerToken
     {
         public string access_token { get; set; }
-        public string expires_in { get; set; }
+        public int expires_in { get; set; }
         public string token_type { get; set; }
         public string refresh_token { get; set; }
         public string scope { get; set; }
@@ -136,5 +165,38 @@ public class GoogleProvider
     private class JsonGoogleConfig
     {
         public string RefreshToken { get; set; }
+    }
+
+    private class AccessTokenProvider
+    {
+        private string _refreshToken;
+        private readonly Func<string, Task<JsonAccessToken>> _fetchAccessToken;
+
+        private string? AccessToken { get; set; } = null;
+        private DateTime AccessTokenExpiration { get; set; } = DateTime.MinValue;
+
+        public AccessTokenProvider(string refreshToken, Func<string, Task<JsonAccessToken>> fetchAccessToken)
+        {
+            this._refreshToken = refreshToken;
+            this._fetchAccessToken = fetchAccessToken;
+        }
+
+        public async Task<string?> GetAccessToken()
+        {
+            if (AccessToken != null && AccessTokenExpiration > DateTime.UtcNow)
+            {
+                return AccessToken;
+            }
+
+            if (_refreshToken != null)
+            {
+                var access = await _fetchAccessToken(_refreshToken);
+                this.AccessToken = access.access_token;
+                this.AccessTokenExpiration = DateTime.UtcNow + TimeSpan.FromSeconds(access.expires_in - 10);
+                return AccessToken;
+            }
+
+            return null;
+        }
     }
 }

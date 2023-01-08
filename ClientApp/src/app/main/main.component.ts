@@ -40,10 +40,12 @@ export class MainComponent {
     this.login();
   }
 
-  setLoginDisplay() {
+  async setLoginDisplay() {
     this.loginDisplay = this.authService.instance.getAllAccounts().length > 0;
     if (this.loginDisplay) {
-      this.root();
+      if (await this.verifyAccess()) {
+        this.root();
+      }
     }
   }
 
@@ -63,17 +65,30 @@ export class MainComponent {
 
   itemClick(item: FileItem) {
     console.log(item);
-    if (item.type==='application/vnd.google-apps.folder') {
+    if (item.type === 'application/vnd.google-apps.folder') {
       this.getFiles(item.id);
     }
+  }
+
+  async verifyAccess() : Promise<boolean> {
+    var dam = await firstValueFrom(this.httpClient.get<DriveAccessMessage>('/drive/postlogin'));
+    if (!dam.hasAccess) {
+      var redirect = window.location.href;
+      redirect = redirect.substr(0, redirect.lastIndexOf('/')) + '/callback';
+      redirect = encodeURIComponent(redirect);
+      const url = dam.redirect + 'redirect_uri=' + redirect;
+      document.location.href = url;
+      return false;
+    }
+    return true;
   }
 
   root() {
     this.getFiles('root');
   }
 
-  getFiles(folder:string) {
-    firstValueFrom(this.httpClient.get<FileItem[]>('/drive/getfiles?folder=' + folder)).then(x => {
+  getFiles(folder: string) {
+    firstValueFrom(this.httpClient.get<FileItem[]>('/drive/getfiles?folderId=' + folder)).then(x => {
       this.files = x;
     });
   }
@@ -82,6 +97,7 @@ export class MainComponent {
 export class DriveAccessMessage {
   code: string = '';
   redirect: string = '';
+  hasAccess: boolean = false;
 }
 
 class FileItem {

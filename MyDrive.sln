@@ -3,7 +3,12 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.33103.201
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyDrive", "MyDrive.csproj", "{B0906D38-A446-41FC-81A5-EB5DA8E8EFD9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MyDrive", "MyDrive.csproj", "{B0906D38-A446-41FC-81A5-EB5DA8E8EFD9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{BCD9E259-B079-493D-8B5B-36DF8A80EDDF}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

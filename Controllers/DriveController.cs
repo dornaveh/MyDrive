@@ -9,12 +9,21 @@ public class DriveController : ControllerBase
     private readonly ILogger<DriveController> _logger;
     private readonly JwtHelper _jwtHelper;
     private readonly GoogleProvider _googleProvider;
+    private readonly BackupManager _backupManager;
+    private readonly MsalConfig _msalConfig;
 
-    public DriveController(ILogger<DriveController> logger, JwtHelper jwtHelper, GoogleProvider googleProvider)
+    public DriveController(
+        ILogger<DriveController> logger,
+        JwtHelper jwtHelper,
+        GoogleProvider googleProvider,
+        BackupManager backupManager,
+        MsalConfig msalConfig)
     {
         _logger = logger;
         _jwtHelper = jwtHelper;
         _googleProvider = googleProvider;
+        _backupManager = backupManager;
+        _msalConfig = msalConfig;
     }
 
     [HttpPost("setgoogledriveaccess")]
@@ -24,26 +33,32 @@ public class DriveController : ControllerBase
         await _googleProvider.SolidifyAccess(request.Code, request.Redirect, token.id);
     }
 
-    [HttpGet("getgoogledriveaccessurl")]
+    [HttpGet("postlogin")]
     public async Task<DriveAccessMessage> GetGoogleDriveAccessUrl()
     {
         var token = await _jwtHelper.getId(Request);
+        var access = await _googleProvider.GetAccess(token.id);
+        if (access != null)
+        {
+            return new DriveAccessMessage { HasAccess = true };
+        }
         var url = _googleProvider.CreateRequestAccessUrl(token.email);
-        return new DriveAccessMessage { Redirect = url };
+        return new DriveAccessMessage
+        {
+            HasAccess = false,
+            Redirect = url
+        };
     }
 
     [HttpGet("getfiles")]
-    public async Task<List<FileItem>> GetFiles(string folder = "root")
+    public async Task<List<FileItem>> GetFiles(string folderId)
     {
         var token = await _jwtHelper.getId(Request);
         var access = await _googleProvider.GetAccess(token.id);
-        return await access.GetFiles(folder);
+        var ans = await access.GetFiles(folderId);
+        return ans;
     }
 
-    public class DriveAccessMessage
-    {
-        public string Code { get; set; } = "";
-        public string Redirect { get; set; } = "";
-    }
+    [HttpGet("msal")]
+    public MsalConfig GetMsalConfig() => _msalConfig;
 }
-
