@@ -49,6 +49,10 @@ export class MainComponent {
     }
   }
 
+  async listFiles() {
+    await firstValueFrom(this.httpClient.get('/drive/listfiles'));
+  }
+
   login() {
     if (!this.loginDisplay) {
       if (this.msalGuardConfig.authRequest) {

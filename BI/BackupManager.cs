@@ -1,4 +1,6 @@
-﻿namespace MyDrive;
+﻿using Newtonsoft.Json;
+
+namespace MyDrive;
 
 public class BackupManager
 {
@@ -11,24 +13,40 @@ public class BackupManager
     {
         int i = 0;
         string path = @"e:\foo.txt";
-        if (System.IO.File.Exists(path))
+        if (File.Exists(path))
         {
-            System.IO.File.Delete(path);
+            File.Delete(path);
         }
-        using (FileStream fs = File.OpenWrite(path))
-        using (StreamWriter sw = new StreamWriter(fs))
+        Dictionary<string, FileItem> dic = new();
+        FileItem root = new FileItem
         {
-            await foreach (FileItem file in access)
+            Name = "Root",
+            Type = FileItem.FolderType,
+        };
+        await foreach (FileItem file in access)
+        {
+            dic.Add(file.Id, file);
+            if (i++ % 1000 == 0)
             {
-                var l = ++i + ": " + file.FullName;
-                Console.WriteLine(l);
-                sw.WriteLine(i);
-                if (i % 100 == 0)
-                {
-                    sw.Flush();
-                    fs.Flush();
-                }
+                Console.WriteLine(i);
             }
         }
+        foreach (var file in dic.Values)
+        {
+            if (!string.IsNullOrEmpty(file.ParentId))
+            {
+                if (!dic.TryGetValue(file.ParentId, out FileItem? parent))
+                {
+                    parent = root;
+                }
+                parent.Children ??= new List<FileItem>();
+                parent.Children.Add(file);
+            }
+        }
+        using FileStream fs = File.OpenWrite(path);
+        using StreamWriter sw = new(fs);
+        var str = JsonConvert.SerializeObject(root);
+        sw.WriteLine(str);
+        fs.Flush();
     }
 }

@@ -50,6 +50,13 @@ public class DriveController : ControllerBase
         };
     }
 
+    [HttpGet("listfiles")]
+    public async Task ListFiles()
+    {
+        var token = await _jwtHelper.getId(Request);
+        _backupManager.Run(await _googleProvider.GetAccess(token.id));
+    }
+
     [HttpGet("getfiles")]
     public async Task<List<FileItem>> GetFiles(string folderId)
     {

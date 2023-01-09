@@ -1,6 +1,5 @@
 ﻿using Azure.Storage.Files.Shares;
 using Azure.Storage.Files.Shares.Models;
-using System.Text;
 
 namespace MyDrive;
 
