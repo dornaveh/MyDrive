@@ -50,19 +50,42 @@ public class DriveController : ControllerBase
         };
     }
 
-    [HttpGet("listfiles")]
-    public async Task ListFiles()
+    [HttpGet("generatecache")]
+    public async Task<bool> GenerateCache()
     {
         var token = await _jwtHelper.getId(Request);
-        _backupManager.Run(await _googleProvider.GetAccess(token.id));
+        return await _backupManager.GenerateCache(token.id);
+    }
+
+    [HttpGet("checkstatus")]
+    public async Task<CheckStatusResponse> CheckStatus()
+    {
+        var token = await _jwtHelper.getId(Request);
+        return await _backupManager.Status(token.id);
+    }
+
+    [HttpGet("backupfile")]
+    public async Task BackupFile(string id)
+    {
+        var token = await _jwtHelper.getId(Request);
+        await _backupManager.Backup(id, token.id);
     }
 
     [HttpGet("getfiles")]
-    public async Task<List<FileItem>> GetFiles(string folderId)
+    public async Task<List<FileItem>> GetFiles(string folderId, string cacheId)
     {
         var token = await _jwtHelper.getId(Request);
-        var access = await _googleProvider.GetAccess(token.id);
-        var ans = await access.GetFiles(folderId);
+        List<FileItem> ans;
+        if ("realtime".Equals(cacheId))
+        {
+            var access = await _googleProvider.GetAccess(token.id);
+            ans = await access.GetFiles(folderId);
+        }
+        else
+        {
+            ans = await _backupManager.GetFiles(token.id, cacheId, folderId);
+        }
+        await _backupManager.MarkDownloaded(token.id, ans);
         return ans;
     }
 

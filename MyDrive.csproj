@@ -12,7 +12,8 @@
 
   <ItemGroup>
 	  <PackageReference Include="Azure.Storage.Files.Shares" Version="12.12.1" />
-	  <PackageReference Include="Google.Apis.Drive.v3" Version="1.58.0.2859" />
+	  <PackageReference Include="Google.Apis.Drive.v3" Version="1.58.0.2922" />
+	  <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.21.0" />
 	  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="7.0.1" />
 	  <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="7.0.1" />
 	  <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.2.2" />

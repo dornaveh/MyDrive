@@ -3,15 +3,28 @@
         Loading...
     </div>
     <div *ngIf="loginDisplay">
-        <button mat-raised-button (click)="root()">Root</button>
-        <button mat-raised-button (click)="listFiles()">List files</button>
-        <mat-divider></mat-divider>
-    </div>
-    <div id="files">
-        <mat-card class="file" *ngFor="let i of files" (click)="itemClick(i)">
-            <mat-card-header>
-                <mat-card-title>{{i.name}}</mat-card-title>
-            </mat-card-header>
-        </mat-card>
+        <div class=btnrow>
+            <button mat-raised-button (click)="root()">Root</button>
+            <button mat-raised-button (click)="refresh()">Refresh</button>
+        </div>
+        <div class=btnrow>
+            <span *ngFor="let i of caches">
+                <button mat-raised-button *ngIf='currentCache.id!==i.id' (click)="cacheClick(i)">{{i.name}}</button>
+                <button mat-stroked-button *ngIf='currentCache.id===i.id' disabled>{{i.name}}</button>
+            </span>
+            <button mat-raised-button *ngIf='cacheCreationStatus<0' (click)="generateCache()">Generate</button>
+            <button mat-stroked-button *ngIf='cacheCreationStatus>=0' disabled>Generating cache snapshot: {{cacheCreationStatus}} files queried</button>
+        </div>
+        <div id="files">
+            <mat-card class="file" *ngFor="let i of files" (click)="fileClick(i)">
+                <mat-card-header>
+                    <mat-card-title>{{i.name}}</mat-card-title>
+                </mat-card-header>
+                <mat-card-actions class="file-actions" *ngIf=i.file.binary>
+                    <button mat-stroked-button disabled *ngIf=i.disabled>{{i.status}}</button>
+                    <button mat-raised-button *ngIf=!i.disabled (click)=i.backup()>{{i.status}}</button>
+                </mat-card-actions>
+            </mat-card>
+        </div>
     </div>
 </div>

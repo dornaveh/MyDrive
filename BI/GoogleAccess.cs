@@ -2,14 +2,13 @@
 using Google.Apis.Drive.v3;
 using Microsoft.IdentityModel.Tokens;
 using System.Collections;
-using System.Collections.Generic;
 
 namespace MyDrive;
 
 public class GoogleAccess : IAsyncEnumerable<FileItem>
 {
+    private const string fields = "files/name, files/id, files/mimeType, files/parents, files/description, files/version, files/size, files/md5Checksum, nextPageToken";
     private Func<Task<string?>> GetAccessToken { get; }
-    private (string? token, DateTime expiration) _accessToken { get; set; } = ("", DateTime.MinValue);
 
     public GoogleAccess(Func<Task<string?>> getAccessToken)
     {
@@ -29,7 +28,7 @@ public class GoogleAccess : IAsyncEnumerable<FileItem>
         var service = await GetService();
         var req = service.Files.List();
         req.Q = string.Format("'{0}' in parents", folder);
-        req.Fields = "files/name, files/id, files/mimeType, files/parents, nextPageToken";
+        req.Fields = fields;
         req.PageSize = 500;
         var files = new List<GoogleFile>();
         var fileList = await req.ExecuteAsync();
@@ -49,12 +48,7 @@ public class GoogleAccess : IAsyncEnumerable<FileItem>
                 fileList = null;
             }
         }
-        return files.Select(x => new FileItem
-        {
-            Id = x.Id,
-            Name = x.Name,
-            Type = x.MimeType
-        }).ToList();
+        return files.Select(x => new FileItem(x)).ToList();
     }
 
     IAsyncEnumerator<FileItem> IAsyncEnumerable<FileItem>.GetAsyncEnumerator(CancellationToken cancellationToken)
@@ -67,53 +61,13 @@ public class GoogleAccess : IAsyncEnumerable<FileItem>
         return !string.IsNullOrEmpty(await GetAccessToken());
     }
 
-    private class FilesEnumerator : IAsyncEnumerator<FileItem>
+    internal async Task<(FilesResource.GetRequest req, long size)> GetFileDownloadRequest(string fileId)
     {
-        private GoogleAccess Access { get; }
-        private Queue<FileItem> Queue = new Queue<FileItem>();
-        private bool first = true;
-
-        public FilesEnumerator(GoogleAccess ga)
-        {
-            Access = ga;
-            Queue.Enqueue(new FileItem { Id = "root", Type = FileItem.FolderType, Name = "Root" });
-        }
-
-        public FileItem Current => Queue.Peek();
-
-        public async ValueTask<bool> MoveNextAsync()
-        {
-            if (first)
-            {
-                first = false;
-                return true;
-            }
-
-            if (Current.IsFolder)
-            {
-                var sub = await this.Access.GetFiles(Current.Id);
-                foreach (var file in sub)
-                {
-                    file.Parent = Current;
-                }
-                foreach (var file in sub.Where(x => !x.IsFolder))
-                {
-                    Queue.Enqueue(file);
-                }
-                foreach (var file in sub.Where(x => x.IsFolder))
-                {
-                    Queue.Enqueue(file);
-                }
-            }
-            Queue.Dequeue();
-            return Queue.Count > 0;
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            Queue.Clear();
-            return ValueTask.CompletedTask;
-        }
+        var service = await GetService();
+        var req = service.Files.Get(fileId);
+        req.Fields = "size";
+        var file = await req.ExecuteAsync();
+        return (service.Files.Get(fileId), file.Size ?? -1);
     }
 
     private class SingleQueryFilesEnumerator : IAsyncEnumerator<FileItem>
@@ -134,8 +88,8 @@ public class GoogleAccess : IAsyncEnumerable<FileItem>
         {
             var service = await Access.GetService();
             var req = service.Files.List();
-            req.Fields = "files/name, files/id, files/mimeType, files/parents, nextPageToken";
-            req.PageSize = 500;
+            req.Fields = fields;
+            req.PageSize = 1000;
             req.PageToken = NextPageToken;
             NextPageToken = null;
             var fileList = await req.ExecuteAsync();
@@ -145,13 +99,7 @@ public class GoogleAccess : IAsyncEnumerable<FileItem>
             }
             foreach (var file in fileList.Files)
             {
-                Queue.Enqueue(new FileItem
-                {
-                    Id = file.Id,
-                    Name = file.Name,
-                    Type = file.MimeType,
-                    ParentId = file.Parents?.FirstOrDefault()
-                });  
+                Queue.Enqueue(new FileItem(file));
             }
         }
 

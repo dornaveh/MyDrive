@@ -12,9 +12,13 @@ builder.Services.AddControllersWithViews();
 builder.Configuration.AddAzureKeyVault(new Uri(keyVault), new DefaultAzureCredential());
 builder.Services.AddSingleton<JwtHelper>();
 builder.Services.AddSingleton<GoogleProvider>();
+builder.Services.AddSingleton<StorageProvider>();
 builder.Services.AddSingleton<BackupManager>();
 builder.Services.AddSingleton(builder.Configuration.GetMsalConfig());
-
+builder.Services.AddApplicationInsightsTelemetry(o =>
+{
+    o.ConnectionString = builder.Configuration.GetAppInsightConnectionString();
+});
 var handler = new HttpClientHandler();
 if (handler.SupportsAutomaticDecompression)
 {

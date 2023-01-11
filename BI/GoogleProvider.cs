@@ -9,10 +9,14 @@ public class GoogleProvider
     private List<(string id, GoogleAccess access)> _cache = new();
     private readonly IConfiguration _config;
     private readonly HttpClient _httpClient;
-    public GoogleProvider(IConfiguration config, HttpClient httpClient)
+    private readonly StorageProvider _storageProvider;
+    private const string TokenFile = "google.config";
+
+    public GoogleProvider(IConfiguration config, HttpClient httpClient, StorageProvider storageProvider)
     {
         _config = config;
         _httpClient = httpClient;
+        _storageProvider = storageProvider;
     }
 
     private string GoogleClientId { get => _config.GetGoogleClientId(); }
@@ -20,7 +24,7 @@ public class GoogleProvider
 
     private StorageAccess GetConfigStorage(string id)
     {
-        return new StorageAccess(_config.GetBlobStorageConnectionString(), "google.config", id);
+        return _storageProvider.GetAccess(id);
     }
 
     public async Task SolidifyAccess(string code, string redirect, string id)
@@ -42,15 +46,7 @@ public class GoogleProvider
             RefreshToken = bearer.refresh_token
         };
         var storage = GetConfigStorage(id);
-        await storage.Delete();
-        using var mem = new MemoryStream();
-        using var tempWriter = new StreamWriter(mem);
-        await tempWriter.WriteAsync(JsonConvert.SerializeObject(config));
-        await tempWriter.FlushAsync();
-        using var uploader = await storage.CreateUploadStream(mem.Length);
-        using var writer = new StreamWriter(uploader);
-        await writer.WriteAsync(JsonConvert.SerializeObject(config));
-        await writer.FlushAsync();
+        await storage.Save(TokenFile, JsonConvert.SerializeObject(config));
     }
 
     public async Task<GoogleAccess?> GetAccess(string id)
@@ -60,7 +56,7 @@ public class GoogleProvider
         {
             return cached;
         }
-        var refreshToken = await GetConfigStorage(id).ReadFile();
+        var refreshToken = await GetConfigStorage(id).ReadFile(TokenFile);
         if (refreshToken == null)
         {
             return null;

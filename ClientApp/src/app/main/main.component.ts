@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, Inject } from '@angular/core';
+import { FormControl } from '@angular/forms';
 import { MsalBroadcastService, MsalGuardConfiguration, MsalService, MSAL_GUARD_CONFIG } from '@azure/msal-angular';
 import { EventMessage, EventType, InteractionStatus, RedirectRequest } from '@azure/msal-browser';
 import { filter, firstValueFrom } from 'rxjs';
@@ -12,13 +13,22 @@ import { filter, firstValueFrom } from 'rxjs';
 export class MainComponent {
 
   loginDisplay = false;
-  files: FileItem[] = [];
+  files: FileItemWrapper[] = [];
+  caches: CacheItem[] = [];
+  cacheControl = new FormControl();
+  currentCache = new CacheItem();
+  cacheCreationStatus = -2;
+  currentFolder = 'root';
 
   constructor(
     @Inject(MSAL_GUARD_CONFIG) private msalGuardConfig: MsalGuardConfiguration,
     private authService: MsalService,
     private msalBroadcastService: MsalBroadcastService,
     private httpClient: HttpClient) {
+  }
+
+  set fontStyle(value: string) {
+    console.log(value);
   }
 
   ngOnInit(): void {
@@ -40,17 +50,34 @@ export class MainComponent {
     this.login();
   }
 
+  async refresh() {
+    var res = await firstValueFrom(this.httpClient.get<CheckStatusResponse>('/drive/checkstatus'));
+    this.cacheCreationStatus = res.cacheGenerationStatus;
+    this.caches = [];
+    var now = new CacheItem();
+    this.caches.push(now);
+    res.cacheTimeStamps.forEach(n => {
+      var item = new CacheItem();
+      item.id = "" + n;
+      var d = new Date(0); // The 0 there is the key, which sets the date to the epoch
+      d.setUTCSeconds(n / 1000);
+      item.name = d.toLocaleDateString() + " " + d.toLocaleTimeString();
+      this.caches.push(item);
+    });
+    await this.getFiles(this.currentFolder);
+  }
+
   async setLoginDisplay() {
     this.loginDisplay = this.authService.instance.getAllAccounts().length > 0;
     if (this.loginDisplay) {
       if (await this.verifyAccess()) {
-        this.root();
+        await this.refresh();
       }
     }
   }
 
-  async listFiles() {
-    await firstValueFrom(this.httpClient.get('/drive/listfiles'));
+  async generateCache() {
+    await firstValueFrom(this.httpClient.get('/drive/generatecache'));
   }
 
   login() {
@@ -67,14 +94,23 @@ export class MainComponent {
     this.authService.logout();
   }
 
-  itemClick(item: FileItem) {
+  fileClick(item: FileItemWrapper) {
     console.log(item);
-    if (item.type === 'application/vnd.google-apps.folder') {
-      this.getFiles(item.id);
+    if (item.isFolder) {
+      this.getFiles(item.file.id);
     }
   }
 
-  async verifyAccess() : Promise<boolean> {
+  cacheClick(item: CacheItem) {
+    this.currentCache = item;
+    this.refresh();
+  }
+
+  async backup(id: string) {
+    await firstValueFrom(this.httpClient.get('/drive/backupfile?id=' + id));
+  }
+
+  async verifyAccess(): Promise<boolean> {
     var dam = await firstValueFrom(this.httpClient.get<DriveAccessMessage>('/drive/postlogin'));
     if (!dam.hasAccess) {
       var redirect = window.location.href;
@@ -92,8 +128,9 @@ export class MainComponent {
   }
 
   getFiles(folder: string) {
-    firstValueFrom(this.httpClient.get<FileItem[]>('/drive/getfiles?folderId=' + folder)).then(x => {
-      this.files = x;
+    this.currentFolder = folder;
+    firstValueFrom(this.httpClient.get<FileItem[]>('/drive/getfiles?folderId=' + folder + "&cacheId=" + this.currentCache.id)).then(x => {
+      this.files = x.map(x => new FileItemWrapper(x, y => { this.backup(y); }));
     });
   }
 }
@@ -104,9 +141,48 @@ export class DriveAccessMessage {
   hasAccess: boolean = false;
 }
 
+class FileItemWrapper {
+  public constructor(public file: FileItem, private backupFn: (id: string) => void) { }
+  get name() { return this.file.name; }
+  get isFolder() {
+    return this.file.type === 'application/vnd.google-apps.folder';
+  }
+  get disabled(): boolean {
+    return this.file.backedUp || this.file.downloading >= 0;
+  }
+  get status(): string {
+    if (this.file.backedUp) {
+      return "Backed up";
+    }
+    if (this.file.downloading >= 0) {
+      var x = Math.round(this.file.downloading * 100);
+      return "Backing up " + x + "%";
+    }
+    return "Back up";
+  }
+  backup() {
+    if (!this.disabled) {
+      this.backupFn(this.file.id);
+    }
+  }
+}
+
 class FileItem {
   name: string = '';
   id: string = '';
   type: string = '';
+  binary: boolean = false;
+  backedUp: boolean = false;
+  downloading: number = -2;
+}
+
+class CacheItem {
+  id: string = "realtime";
+  name: string = "Google Drive"
+}
+
+class CheckStatusResponse {
+  cacheGenerationStatus: number = -2;
+  cacheTimeStamps: number[] = [];
 }
 
