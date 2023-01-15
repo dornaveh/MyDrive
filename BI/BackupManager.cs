@@ -9,6 +9,7 @@ public class BackupManager
     private readonly Dictionary<string, GetRootJob> _getRoots = new();
     private readonly List<(string userId, string cacheId, FileItem root)> _rootCache = new();
     private readonly List<BackupJob> jobs = new();
+    private readonly List<(string userId, string cacheId)> cacheJobs = new();
 
     public BackupManager(StorageProvider storageProvider, GoogleProvider googleProvider)
     {
@@ -56,54 +57,35 @@ public class BackupManager
         return new CheckStatusResponse
         {
             CacheGenerationStatus = _getRoots.TryGetValue(userId, out var task) ? task.Count : -1,
-            CacheTimeStamps = files.Where(x => x.EndsWith(".cache")).Select(name =>
-            {
-                return long.Parse(name.Substring(0, name.Length - ".cache".Length));
-            }).ToList()
+            CacheTimeStamps = files.Where(x => x.EndsWith(".cache")).Select(name => long.Parse(name[..^".cache".Length])).ToList()
         };
     }
 
     public async Task<List<FileItem>> GetFiles(string userId, string cacheId, string folderId)
     {
-        FileItem root = _rootCache.FirstOrDefault(x => x.userId.Equals(userId) && x.cacheId.Equals(cacheId)).root;
-        if (root == null)
+        var root = await GetCache(cacheId, userId);
+        var q = new Queue<FileItem>();
+        q.Enqueue(root);
+        while (q.Count > 0)
         {
-            var rootjson = await _storageProvider.GetAccess(userId).ReadFile(cacheId + ".cache");
-            root = JsonConvert.DeserializeObject<FileItem>(rootjson);
-            if (root != null)
+            var cur = q.Dequeue();
+            if (cur.Id.Equals(folderId) && cur.Children != null)
             {
-                _rootCache.Add((userId, cacheId, root));
-                while (_rootCache.Count > 1000)
+                return cur.Children.Select(c => new FileItem
                 {
-                    _rootCache.RemoveAt(0);
-                }
+                    Binary = c.Binary,
+                    Description = c.Description,
+                    Name = c.Name,
+                    Id = c.Id,
+                    ParentId = c.ParentId,
+                    Size = c.Size,
+                    Type = c.Type,
+                    Version = c.Version,
+                }).ToList();
             }
+            cur?.Children?.ForEach(c => { q.Enqueue(c); });
         }
-        if (root != null)
-        {
-            var q = new Queue<FileItem>();
-            q.Enqueue(root);
-            while (q.Count > 0)
-            {
-                if (q.Peek().Id.Equals(folderId))
-                {
-                    return q.Peek().Children.Select(c => new FileItem
-                    {
-                        Binary = c.Binary,
-                        Description = c.Description,
-                        Name = c.Name,
-                        Id = c.Id,
-                        ParentId = c.ParentId,
-                        Size = c.Size,
-                        Type = c.Type,
-                        Version = c.Version,
-                    }).ToList();
-                }
-                q.Peek()?.Children?.ForEach(c => { q.Enqueue(c); });
-                q.Dequeue();
-            }
-        }
-        return null;
+        return new();
     }
 
     public async Task Backup(string fileId, string userId)
@@ -118,16 +100,19 @@ public class BackupManager
     {
         var stored = await this._storageProvider.GetAccess(userId).ListFiles();
         var filesDic = files.ToDictionary(x => x.Id);
-        foreach ( var name in stored) {
-            if (name.EndsWith(".file")) {
-                var id = name.Substring(0, name.Length - ".file".Length);
-                if (filesDic.ContainsKey(id))
+        foreach (var name in stored)
+        {
+            if (name.EndsWith(".file"))
+            {
+                var id = name[..^".file".Length];
+                if (filesDic.TryGetValue(id, out var value))
                 {
-                    filesDic[id].BackedUp = true;
+                    value.BackedUp = true;
                 }
             }
         }
-        foreach ( var job in jobs) { 
+        foreach (var job in jobs)
+        {
             if (job.UserId == userId)
             {
                 if (filesDic.ContainsKey(job.FileId))
@@ -135,6 +120,113 @@ public class BackupManager
                     filesDic[job.FileId].Downloading = job.Percentage;
                 }
             }
+        }
+    }
+
+    internal bool BackupCache(string cacheId, string userId)
+    {
+        if (cacheJobs.Any(x => x.userId == userId))
+        {
+            return false;
+        }
+        _ = BackupCacheAsync(cacheId, userId);
+        return true;
+    }
+
+    public async Task<CacheStatusResponse> GetCacheStatus(string cacheId, string userId)
+    {
+        var root = await GetCache(cacheId, userId);
+        var q = new Queue<FileItem>();
+        CacheStatusResponse ans = new() { CacheId = cacheId };
+        q.Enqueue(root);
+        var filesList = await _storageProvider.GetAccess(userId).ListFiles();
+        var fileSet = filesList.Where(x => x.EndsWith(".file")).Select(y => y[..^".file".Length]).ToHashSet();
+        ans.BackingUp = this.jobs.Any(x => x.UserId == userId);
+        while (q.Count > 0)
+        {
+            var cur = q.Dequeue();
+            if (cur.Binary)
+            {
+                ans.TotalFileSize += cur.Size ?? 0;
+                ans.TotalFiles++;
+                if (fileSet.Contains(cur.Id))
+                {
+                    ans.BackedUpFileSize += cur.Size ?? 0;
+                    ans.BackedUpFiles++;
+                }
+            }
+            cur?.Children?.ForEach(c => q.Enqueue(c));
+        }
+        return ans;
+    }
+
+    private async Task<FileItem> GetCache(string cacheId, string userId)
+    {
+        FileItem root = _rootCache.FirstOrDefault(x => x.userId.Equals(userId) && x.cacheId.Equals(cacheId)).root;
+        if (root != null)
+        {
+            return root;
+        }
+        var rootjson = await _storageProvider.GetAccess(userId).ReadFile(cacheId + ".cache");
+        root = JsonConvert.DeserializeObject<FileItem>(rootjson) ?? throw new Exception("not cache");
+        _rootCache.Add((userId, cacheId, root));
+        while (_rootCache.Count > 1000)
+        {
+            _rootCache.RemoveAt(0);
+        }
+        return root;
+    }
+
+    private async Task BackupCacheAsync(string cacheId, string userId)
+    {
+        cacheJobs.Add((userId, cacheId));
+        try
+        {
+            var root = await GetCache(cacheId, userId);
+            var todo = new Queue<FileItem>();
+            HashSet<string> alreadyFiles = await GetCurrentFiles();
+            todo.Enqueue(root);
+            int i = 0;
+            while (todo.Count > 0)
+            {
+                var cur = todo.Dequeue();
+                if (cur.IsFolder)
+                {
+                    cur?.Children?.ForEach(c => todo.Enqueue(c));
+                }
+                if (cur.Binary && !alreadyFiles.Contains(cur.Id))
+                {
+                    try
+                    {
+                        var ga = await _googleProvider.GetAccess(userId).ConfigureAwait(false);
+                        var bj = new BackupJob(userId, cur.Id, _storageProvider.GetAccess(userId), ga);
+                        jobs.Add(bj);
+                        await bj.Backup(x => jobs.Remove(x));
+                        if (++i % 10 == 0)
+                        {
+                            alreadyFiles = await GetCurrentFiles();
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+        finally
+        {
+            cacheJobs.RemoveAll(a => a.userId.Equals(userId) && a.cacheId.Equals(cacheId));
+        }
+
+        async Task<HashSet<string>> GetCurrentFiles()
+        {
+            return await _storageProvider.GetAccess(userId).ListFiles()
+                .ContinueWith(lst => lst.Result.Where(f => f.EndsWith(".file")).Select(ff => ff[..^".file".Length]).ToHashSet());
         }
     }
 
@@ -207,6 +299,7 @@ public class BackupManager
 
         public async Task Backup(Action<BackupJob> onDone)
         {
+            Console.WriteLine("backing up " + FileId);
             var temp = FileId + ".temp";
             var final = FileId + ".file";
             var req = await GoogleAccess.GetFileDownloadRequest(FileId);
@@ -217,6 +310,8 @@ public class BackupManager
                 Downloaded = x.BytesDownloaded;
                 if (x.Status == Google.Apis.Download.DownloadStatus.Completed && x.BytesDownloaded == req.size)
                 {
+                    upload.Flush();
+                    upload.Dispose();
                     await StorageAccess.Rename(temp, final);
                     onDone(this);
                 }

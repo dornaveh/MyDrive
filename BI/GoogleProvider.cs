@@ -1,6 +1,9 @@
 using Newtonsoft.Json;
+using System;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using static System.Net.WebRequestMethods;
 
 namespace MyDrive;
 
@@ -40,6 +43,13 @@ public class GoogleProvider
         if (bearer == null)
         {
             throw new Exception("couldn't get bearer");
+        }
+        if (bearer.refresh_token == null)
+        {
+            var uri = "https://accounts.google.com/o/oauth2/revoke?token=" + bearer.access_token;
+            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            using HttpResponseMessage response = await _httpClient.SendAsync(request).ConfigureAwait(false);
+            await response.Content.ReadAsStringAsync().ConfigureAwait(false);
         }
         var config = new JsonGoogleConfig()
         {

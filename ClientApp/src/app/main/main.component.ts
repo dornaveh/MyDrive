@@ -19,6 +19,7 @@ export class MainComponent {
   currentCache = new CacheItem();
   cacheCreationStatus = -2;
   currentFolder = 'root';
+  cacheStatusResponse = new CacheStatusResponseWrapper(new CacheStatusResponse());
 
   constructor(
     @Inject(MSAL_GUARD_CONFIG) private msalGuardConfig: MsalGuardConfiguration,
@@ -29,6 +30,10 @@ export class MainComponent {
 
   set fontStyle(value: string) {
     console.log(value);
+  }
+
+  get showBackup() : boolean {
+    return this.cacheStatusResponse.cacheId===this.currentCache.id && !this.cacheStatusResponse.cache.backingUp;
   }
 
   ngOnInit(): void {
@@ -64,6 +69,10 @@ export class MainComponent {
       item.name = d.toLocaleDateString() + " " + d.toLocaleTimeString();
       this.caches.push(item);
     });
+    if (this.currentCache.id !== new CacheItem().id) {// default is "realtime" 
+      this.cacheStatusResponse = new CacheStatusResponseWrapper(await firstValueFrom(this.httpClient.get<CacheStatusResponse>('/drive/checkcachestatus?cacheId=' + this.currentCache.id)));
+    }
+
     await this.getFiles(this.currentFolder);
   }
 
@@ -127,6 +136,11 @@ export class MainComponent {
     this.getFiles('root');
   }
 
+  async backupCache(cacheId: string) {
+    var ans = await firstValueFrom(this.httpClient.get<boolean>('/drive/backupcache?cacheId=' + cacheId));
+    console.log(ans);
+  }
+
   getFiles(folder: string) {
     this.currentFolder = folder;
     firstValueFrom(this.httpClient.get<FileItem[]>('/drive/getfiles?folderId=' + folder + "&cacheId=" + this.currentCache.id)).then(x => {
@@ -143,13 +157,17 @@ export class DriveAccessMessage {
 
 class FileItemWrapper {
   public constructor(public file: FileItem, private backupFn: (id: string) => void) { }
+
   get name() { return this.file.name; }
+
   get isFolder() {
     return this.file.type === 'application/vnd.google-apps.folder';
   }
+
   get disabled(): boolean {
     return this.file.backedUp || this.file.downloading >= 0;
   }
+
   get status(): string {
     if (this.file.backedUp) {
       return "Backed up";
@@ -160,6 +178,7 @@ class FileItemWrapper {
     }
     return "Back up";
   }
+
   backup() {
     if (!this.disabled) {
       this.backupFn(this.file.id);
@@ -184,5 +203,39 @@ class CacheItem {
 class CheckStatusResponse {
   cacheGenerationStatus: number = -2;
   cacheTimeStamps: number[] = [];
+}
+
+class CacheStatusResponse {
+  cacheId: string = '';
+  totalFiles: number = 0;
+  backedUpFiles: number = 0;
+  totalFileSize: number = 0;
+  backedUpFileSize: number = 0;
+  backingUp: boolean = false;
+}
+
+class CacheStatusResponseWrapper {
+  public constructor(public readonly cache: CacheStatusResponse) { }
+  get cacheId() { return this.cache.cacheId; }
+  get status(): string {
+    var ans = "" + this.cache.backedUpFiles + "/" + this.cache.totalFiles + " files, or " + this.getSize(this.cache.backedUpFileSize) + "/" + this.getSize(this.cache.totalFileSize);
+    return ans;
+  }
+
+  private getSize(size: number): string {
+    if (size < 1024) {
+      return size + " Bytes";
+    }
+    size /= 1024;
+    if (size < 1024) {
+      return Math.round(size * 10) / 10 + " KB";
+    }
+    size /= 1024;
+    if (size < 1024) {
+      return Math.round(size * 10) / 10 + " MB";
+    }
+    size /= 1024;
+    return Math.round(size * 10) / 10 + " GB";
+  }
 }
 

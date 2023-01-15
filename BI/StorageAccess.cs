@@ -1,5 +1,6 @@
 ﻿using Azure.Storage.Files.Shares;
 using Azure.Storage.Files.Shares.Models;
+using Newtonsoft.Json;
 using System.IO.Compression;
 using System.Text;
 
@@ -40,6 +41,17 @@ public class StorageAccess
         return dir;
     }
 
+    private async Task<ShareDirectoryClient> GetBackupDirectory()
+    {
+        ShareClient share = new ShareClient(_connection, "mydrive");
+        var dir = share.GetRootDirectoryClient();
+        dir = dir.GetSubdirectoryClient(this._authId);
+        await dir.CreateIfNotExistsAsync();
+        dir = dir.GetSubdirectoryClient("backup");
+        await dir.CreateIfNotExistsAsync();
+        return dir;
+    }
+
     private async Task<ShareFileClient> GetFileClient(string filename)
     {
         var dir = await GetDirectory();
@@ -59,12 +71,36 @@ public class StorageAccess
 
     public async Task<List<string>> ListFiles()
     {
+        var str = await this.ReadFile("backup.drop");
+        var backup = str != null ? JsonConvert.DeserializeObject<HashSet<string>>(str) : null;
+        if (backup == null)
+        {
+            var list = new HashSet<string>();
+            Azure.AsyncPageable<ShareFileItem> backupFolderFiles = (await GetBackupDirectory()).GetFilesAndDirectoriesAsync();
+            await foreach (var file in backupFolderFiles)
+            {
+                list.Add(file.Name);
+            }
+            await Save("backup.drop", JsonConvert.SerializeObject(str));
+            backup = list;
+        }
         var dir = await GetDirectory();
-        var ans = new List<string>();
         Azure.AsyncPageable<ShareFileItem> files = dir.GetFilesAndDirectoriesAsync();
+        var ans = new List<string>(backup);
+        var toBackup = new List<string>();
         await foreach (var file in files)
         {
             ans.Add(file.Name);
+            if (file.Name.EndsWith(".file"))
+            {
+                toBackup.Add(file.Name);
+                backup.Add(file.Name);
+            }
+        }
+        await Save("backup.drop", JsonConvert.SerializeObject(backup));
+        foreach (var tb in toBackup)
+        {
+            await MoveToBackup(tb);
         }
         return ans;
     }
@@ -128,6 +164,19 @@ public class StorageAccess
     {
         var file = await GetFileClient(filename);
         await file.DeleteIfExistsAsync();
+    }
+
+    internal async Task MoveToBackup(string filename)
+    {
+        var file = await GetFileClient(filename);
+        if (await file.ExistsAsync())
+        {
+            var target = (await GetBackupDirectory()).GetFileClient(filename).Path;
+            await file.RenameAsync(target, new ShareFileRenameOptions
+            {
+                ReplaceIfExists = true
+            });
+        }
     }
 
     internal async Task Rename(string from, string to)

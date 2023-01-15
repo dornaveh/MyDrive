@@ -21,6 +21,16 @@ public record CheckStatusResponse
     public List<long> CacheTimeStamps { get; set; }
 }
 
+public record CacheStatusResponse
+{
+    public string CacheId { get; set; }
+    public int TotalFiles { get; set; } = 0;
+    public int BackedUpFiles { get; set; } = 0;
+    public long TotalFileSize { get; set; } = 0;
+    public long BackedUpFileSize { get; set; } = 0;
+    public bool BackingUp { get; set; } = false;
+}
+
 public static class Epoch
 {
     private static readonly DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);

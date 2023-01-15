@@ -34,7 +34,7 @@ public class DriveController : ControllerBase
     }
 
     [HttpGet("postlogin")]
-    public async Task<DriveAccessMessage> GetGoogleDriveAccessUrl()
+    public async Task<DriveAccessMessage> PostLogin()
     {
         var token = await _jwtHelper.getId(Request);
         var access = await _googleProvider.GetAccess(token.id);
@@ -64,11 +64,25 @@ public class DriveController : ControllerBase
         return await _backupManager.Status(token.id);
     }
 
+    [HttpGet("checkcachestatus")]
+    public async Task<CacheStatusResponse> CheckCacheStatus(string cacheId)
+    {
+        var token = await _jwtHelper.getId(Request);
+        return await _backupManager.GetCacheStatus(cacheId, token.id);
+    }
+
     [HttpGet("backupfile")]
     public async Task BackupFile(string id)
     {
         var token = await _jwtHelper.getId(Request);
         await _backupManager.Backup(id, token.id);
+    }
+
+    [HttpGet("backupcache")]
+    public async Task<bool> BackupCache(string cacheId)
+    {
+        var token = await _jwtHelper.getId(Request);
+        return _backupManager.BackupCache(cacheId, token.id);
     }
 
     [HttpGet("getfiles")]
