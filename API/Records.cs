@@ -21,6 +21,11 @@ public record CheckStatusResponse
     public List<long> CacheTimeStamps { get; set; }
 }
 
+public record SasUrl
+{
+    public string Url { get; set; }
+}
+
 public record CacheStatusResponse
 {
     public string CacheId { get; set; }

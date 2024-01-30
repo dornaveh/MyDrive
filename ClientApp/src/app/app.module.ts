@@ -19,12 +19,14 @@ import { AppComponent } from './app.component';
 import { CallbackComponent } from './callback/callback.component';
 import { MainComponent } from './main/main.component';
 import { MsalApplicationModule } from './msal-application.module';
+import { FileviewComponent } from './fileview/fileview.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     CallbackComponent,
     MainComponent,
+    FileviewComponent,
   
   ],
   imports: [

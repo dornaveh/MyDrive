@@ -4,6 +4,7 @@ import { FormControl } from '@angular/forms';
 import { MsalBroadcastService, MsalGuardConfiguration, MsalService, MSAL_GUARD_CONFIG } from '@azure/msal-angular';
 import { EventMessage, EventType, InteractionStatus, RedirectRequest } from '@azure/msal-browser';
 import { filter, firstValueFrom } from 'rxjs';
+import { FileItem } from '../fileview/fileview.component';
 
 @Component({
   selector: 'app-main',
@@ -13,7 +14,7 @@ import { filter, firstValueFrom } from 'rxjs';
 export class MainComponent {
 
   loginDisplay = false;
-  files: FileItemWrapper[] = [];
+  files: FileItem[] = [];
   caches: CacheItem[] = [];
   cacheControl = new FormControl();
   currentCache = new CacheItem();
@@ -32,8 +33,8 @@ export class MainComponent {
     console.log(value);
   }
 
-  get showBackup() : boolean {
-    return this.cacheStatusResponse.cacheId===this.currentCache.id && !this.cacheStatusResponse.cache.backingUp;
+  get showBackup(): boolean {
+    return this.cacheStatusResponse.cacheId === this.currentCache.id && !this.cacheStatusResponse.cache.backingUp;
   }
 
   ngOnInit(): void {
@@ -103,12 +104,12 @@ export class MainComponent {
     this.authService.logout();
   }
 
-  fileClick(item: FileItemWrapper) {
-    console.log(item);
-    if (item.isFolder) {
-      this.getFiles(item.file.id);
-    }
-  }
+  // fileClick(item: FileItemWrapper) {
+  //   console.log(item);
+  //   if (item.isFolder) {
+  //     this.getFiles(item.file.id);
+  //   }
+  // }
 
   cacheClick(item: CacheItem) {
     this.currentCache = item;
@@ -144,7 +145,7 @@ export class MainComponent {
   getFiles(folder: string) {
     this.currentFolder = folder;
     firstValueFrom(this.httpClient.get<FileItem[]>('/drive/getfiles?folderId=' + folder + "&cacheId=" + this.currentCache.id)).then(x => {
-      this.files = x.map(x => new FileItemWrapper(x, y => { this.backup(y); }));
+      this.files = x;
     });
   }
 }
@@ -155,45 +156,38 @@ export class DriveAccessMessage {
   hasAccess: boolean = false;
 }
 
-class FileItemWrapper {
-  public constructor(public file: FileItem, private backupFn: (id: string) => void) { }
+// class FileItemWrapper {
+//   public constructor(public file: FileItem, private backupFn: (id: string) => void) { }
 
-  get name() { return this.file.name; }
+//   get name() { return this.file.name; }
 
-  get isFolder() {
-    return this.file.type === 'application/vnd.google-apps.folder';
-  }
+//   get isFolder() {
+//     return this.file.type === 'application/vnd.google-apps.folder';
+//   }
 
-  get disabled(): boolean {
-    return this.file.backedUp || this.file.downloading >= 0;
-  }
+//   get disabled(): boolean {
+//     return this.file.backedUp || this.file.downloading >= 0;
+//   }
 
-  get status(): string {
-    if (this.file.backedUp) {
-      return "Backed up";
-    }
-    if (this.file.downloading >= 0) {
-      var x = Math.round(this.file.downloading * 100);
-      return "Backing up " + x + "%";
-    }
-    return "Back up";
-  }
+//   get status(): string {
+//     if (this.file.backedUp) {
+//       return "Backed up";
+//     }
+//     if (this.file.downloading >= 0) {
+//       var x = Math.round(this.file.downloading * 100);
+//       return "Backing up " + x + "%";
+//     }
+//     return "Back up";
+//   }
 
-  backup() {
-    if (!this.disabled) {
-      this.backupFn(this.file.id);
-    }
-  }
-}
+//   backup() {
+//     if (!this.disabled) {
+//       this.backupFn(this.file.id);
+//     }
+//   }
+// }
 
-class FileItem {
-  name: string = '';
-  id: string = '';
-  type: string = '';
-  binary: boolean = false;
-  backedUp: boolean = false;
-  downloading: number = -2;
-}
+
 
 class CacheItem {
   id: string = "realtime";

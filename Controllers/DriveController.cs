@@ -99,8 +99,18 @@ public class DriveController : ControllerBase
         {
             ans = await _backupManager.GetFiles(token.id, cacheId, folderId);
         }
-        await _backupManager.MarkDownloaded(token.id, ans);
+        await _backupManager.MarkActions(token.id, ans);
         return ans;
+    }
+
+    [HttpGet("getdownloadurl")]
+    public async Task<SasUrl> GetDownloadUrl(string fileId)
+    {
+        var token = await _jwtHelper.getId(Request);
+        return new SasUrl
+        {
+            Url = await _backupManager.GetSasUrl(token.id, fileId)
+        };
     }
 
     [HttpGet("msal")]

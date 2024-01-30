@@ -96,7 +96,7 @@ public class BackupManager
         _ = bj.Backup(x => jobs.Remove(x));
     }
 
-    public async Task MarkDownloaded(string userId, List<FileItem> files)
+    public async Task MarkActions(string userId, List<FileItem> files)
     {
         var stored = await this._storageProvider.GetAccess(userId).ListFiles();
         var filesDic = files.ToDictionary(x => x.Id);
@@ -107,7 +107,7 @@ public class BackupManager
                 var id = name[..^".file".Length];
                 if (filesDic.TryGetValue(id, out var value))
                 {
-                    value.BackedUp = true;
+                    value.Actions.Add("Download");
                 }
             }
         }
@@ -228,6 +228,12 @@ public class BackupManager
             return await _storageProvider.GetAccess(userId).ListFiles()
                 .ContinueWith(lst => lst.Result.Where(f => f.EndsWith(".file")).Select(ff => ff[..^".file".Length]).ToHashSet());
         }
+    }
+
+    internal async Task<string> GetSasUrl(string userId, string fileId)
+    {
+        var access = _storageProvider.GetAccess(userId);
+        return await access.GetSasUrl(fileId + ".file");
     }
 
     private class GetRootJob

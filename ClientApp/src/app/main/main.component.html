@@ -20,15 +20,8 @@
             <div>{{cacheStatusResponse.status}}</div>
         </div>
         <div id="files">
-            <mat-card class="file" *ngFor="let i of files" (click)="fileClick(i)">
-                <mat-card-header>
-                    <mat-card-title>{{i.name}}</mat-card-title>
-                </mat-card-header>
-                <mat-card-actions class="file-actions" *ngIf=i.file.binary>
-                    <button mat-stroked-button disabled *ngIf=i.disabled>{{i.status}}</button>
-                    <button mat-raised-button *ngIf=!i.disabled (click)=i.backup()>{{i.status}}</button>
-                </mat-card-actions>
-            </mat-card>
+            <app-fileview class="file" *ngFor="let f of files" [file]=f (folderChange)=getFiles($event)>
+            </app-fileview>
         </div>
     </div>
 </div>

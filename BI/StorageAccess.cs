@@ -58,6 +58,12 @@ public class StorageAccess
         return dir.GetFileClient(filename);
     }
 
+    private async Task<ShareFileClient> GetBackupFileClient(string filename)
+    {
+        var dir = await GetBackupDirectory();
+        return dir.GetFileClient(filename);
+    }
+
     /*public async Task<Stream> Open(string filename, long from, int length)
     {
         var file = await GetFileClient(filename);
@@ -183,5 +189,12 @@ public class StorageAccess
     {
         var file = await GetFileClient(from);
         await file.RenameAsync((await GetDirectory()).GetFileClient(to).Path);
+    }
+
+    internal async Task<string> GetSasUrl(string fileName)
+    {
+        var file = await GetBackupFileClient(fileName);
+        var uri = file.GenerateSasUri(Azure.Storage.Sas.ShareFileSasPermissions.Read, DateTimeOffset.UtcNow + TimeSpan.FromDays(1));
+        return uri.AbsoluteUri;
     }
 }
