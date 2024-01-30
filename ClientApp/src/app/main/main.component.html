@@ -1,28 +1,38 @@
-<div id="container">
-    <div *ngIf="!loginDisplay">
-        Loading...
+
+<div *ngIf="!loginDisplay">
+    Loading...
+</div>
+<div *ngIf="loginDisplay" id="container">
+    <div class=btnrow>
+        <button mat-raised-button (click)="root()">Root</button>
+        <button mat-raised-button (click)="refresh()">Refresh</button>
+        <button mat-raised-button *ngIf='cacheCreationStatus<0'
+            (click)="generateCache()">Generate new cache</button>
+        <button mat-stroked-button *ngIf='cacheCreationStatus>=0'
+            disabled>Generating cache snapshot: {{cacheCreationStatus}}
+            files queried</button>
+        <button mat-raised-button
+            (click)=backupCache(cacheStatusResponse.cacheId)
+            *ngIf=showBackup>Backup cache</button>
     </div>
-    <div *ngIf="loginDisplay">
-        <div class=btnrow>
-            <button mat-raised-button (click)="root()">Root</button>
-            <button mat-raised-button (click)="refresh()">Refresh</button>
-            <button mat-raised-button *ngIf='cacheCreationStatus<0' (click)="generateCache()">Generate new cache</button>
-            <button mat-stroked-button *ngIf='cacheCreationStatus>=0' disabled>Generating cache snapshot: {{cacheCreationStatus}} files queried</button>
-            <button mat-raised-button (click)=backupCache(cacheStatusResponse.cacheId) *ngIf=showBackup>Backup cache</button>
-        </div>
-        <div class=btnrow>
-            <span *ngFor="let i of caches">
-                <button mat-raised-button *ngIf='currentCache.id!==i.id' (click)="cacheClick(i)">{{i.name}}</button>
-                <button mat-stroked-button *ngIf='currentCache.id===i.id' disabled>{{i.name}}</button>
-            </span>
-        </div>
-        <div class=btnrow *ngIf="cacheStatusResponse.cacheId===currentCache.id">
-            <div>{{cacheStatusResponse.status}}</div>
-        </div>
+    <div class=btnrow>
+        <span *ngFor="let i of caches">
+            <button mat-raised-button *ngIf='currentCache.id!==i.id'
+                (click)="cacheClick(i)">{{i.name}}</button>
+            <button mat-stroked-button *ngIf='currentCache.id===i.id'
+                disabled>{{i.name}}</button>
+        </span>
+    </div>
+    <div class=btnrow *ngIf="cacheStatusResponse.cacheId===currentCache.id">
+        <div>{{cacheStatusResponse.status}}</div>
+    </div>
+    <div id="files-wrapper">
         <div id="files">
-            <app-fileview class="file" *ngFor="let f of files" [file]=f (folderChange)=getFiles($event) (onUrl)=onUrl($event)>
+            <app-fileview class="file" *ngFor="let f of files" [file]=f
+                (folderChange)=getFiles($event) (onUrl)=onUrl($event)>
             </app-fileview>
         </div>
     </div>
 </div>
+
 <div id="footer">{{url}}</div>
