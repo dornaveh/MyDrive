@@ -69,11 +69,11 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "browserTarget": "MyDrive:build:production"
+              "buildTarget": "MyDrive:build:production"
             },
             "development": {
-              "browserTarget": "MyDrive:build:development",
-              "proxyConfig": "proxy.conf.js"
+              "proxyConfig": "proxy.conf.js",
+              "buildTarget": "MyDrive:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -81,7 +81,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "MyDrive:build"
+            "buildTarget": "MyDrive:build"
           }
         },
         "test": {
