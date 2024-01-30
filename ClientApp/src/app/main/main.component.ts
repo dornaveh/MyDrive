@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, Inject } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { MsalBroadcastService, MsalGuardConfiguration, MsalService, MSAL_GUARD_CONFIG } from '@azure/msal-angular';
+import { MSAL_GUARD_CONFIG, MsalBroadcastService, MsalGuardConfiguration, MsalService } from '@azure/msal-angular';
 import { EventMessage, EventType, InteractionStatus, RedirectRequest } from '@azure/msal-browser';
 import { filter, firstValueFrom } from 'rxjs';
 import { FileItem } from '../fileview/fileview.component';
@@ -20,6 +20,7 @@ export class MainComponent {
   currentCache = new CacheItem();
   cacheCreationStatus = -2;
   currentFolder = 'root';
+  url = 'foo';
   cacheStatusResponse = new CacheStatusResponseWrapper(new CacheStatusResponse());
 
   constructor(
@@ -104,12 +105,9 @@ export class MainComponent {
     this.authService.logout();
   }
 
-  // fileClick(item: FileItemWrapper) {
-  //   console.log(item);
-  //   if (item.isFolder) {
-  //     this.getFiles(item.file.id);
-  //   }
-  // }
+  onUrl(value: string) {
+    this.url = value;
+  }
 
   cacheClick(item: CacheItem) {
     this.currentCache = item;

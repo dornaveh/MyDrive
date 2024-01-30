@@ -20,8 +20,9 @@
             <div>{{cacheStatusResponse.status}}</div>
         </div>
         <div id="files">
-            <app-fileview class="file" *ngFor="let f of files" [file]=f (folderChange)=getFiles($event)>
+            <app-fileview class="file" *ngFor="let f of files" [file]=f (folderChange)=getFiles($event) (onUrl)=onUrl($event)>
             </app-fileview>
         </div>
     </div>
 </div>
+<div id="footer">{{url}}</div>

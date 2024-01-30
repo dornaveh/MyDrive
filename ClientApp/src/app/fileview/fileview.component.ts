@@ -10,6 +10,7 @@ import { firstValueFrom } from 'rxjs';
 export class FileviewComponent {
   @Input() file: FileItem = new FileItem();
   @Output() folderChange = new EventEmitter();
+  @Output() onUrl = new EventEmitter<string>();
 
   constructor(private readonly httpClient: HttpClient) { }
 
@@ -23,6 +24,7 @@ export class FileviewComponent {
     } else {
       var x = await firstValueFrom(this.httpClient.get<SasUrl>('/drive/getdownloadurl?fileId=' + this.file.id));
       navigator.clipboard.writeText(x.url);
+      this.onUrl.emit(x.url);
     }
   }
 }
