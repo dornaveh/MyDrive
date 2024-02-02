@@ -3,7 +3,11 @@
         <mat-card-title> {{file.name}} </mat-card-title>
     </mat-card-header>
     <mat-card-actions align="end">
-        <button mat-raised-button (click)=onClick() *ngIf=isFolder><mat-icon>folder_open</mat-icon></button>
-        <button mat-raised-button (click)=onClick() *ngIf=!isFolder><mat-icon>link</mat-icon></button>
+        <button mat-raised-button (click)=onClick()
+            *ngIf=isFolder><mat-icon>folder_open</mat-icon></button>
+        <button mat-raised-button (click)=onClick()
+            *ngIf=!isFolder><mat-icon>link</mat-icon></button>
+        <button mat-raised-button (click)=autoDownload()
+            *ngIf=isVideo><mat-icon>screen_share</mat-icon></button>
     </mat-card-actions>
 </mat-card>

@@ -18,6 +18,10 @@ export class FileviewComponent {
     return this.file.type === 'application/vnd.google-apps.folder';
   }
 
+  get isVideo() {
+    return this.file.type === 'video/mp4';
+  }
+
   async onClick() {
     if (this.isFolder) {
       this.folderChange.emit(this.file.id);
@@ -26,6 +30,12 @@ export class FileviewComponent {
       navigator.clipboard.writeText(x.url);
       this.onUrl.emit(x.url);
     }
+  }
+
+  async autoDownload() {
+    var x = await firstValueFrom(this.httpClient.get<SasUrl>('/drive/getdownloadurl?fileId=' + this.file.id));
+    var w = window.open('https://watchparty.azurewebsites.net/ad?fn=' + btoa(this.file.name) + '&url=' + btoa(x.url));
+    setTimeout(() => { w?.close() }, 10000);
   }
 }
 
