@@ -34,8 +34,7 @@ export class FileviewComponent {
 
   async autoDownload() {
     var x = await firstValueFrom(this.httpClient.get<SasUrl>('/drive/getdownloadurl?fileId=' + this.file.id));
-    var w = window.open('https://watchparty.azurewebsites.net/ad?fn=' + btoa(this.file.name) + '&url=' + btoa(x.url));
-    setTimeout(() => { w?.close() }, 10000);
+    var w = window.open('https://watchparty.azurewebsites.net?fn=' + btoa(this.file.name) + '&url=' + btoa(x.url));
   }
 }
 
